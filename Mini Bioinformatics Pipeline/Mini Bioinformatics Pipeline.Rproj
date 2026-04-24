@@ -1,0 +1,80 @@
+# sheet 5 BIOInfo
+#################### Mini Bioinformatics Pipeline ############################
+
+# installing 
+BiocManager::install("Biostrings")
+install.packages("tidyverse")
+
+library(Biostrings)
+library(tidyverse)
+
+# Create DNA string (DNA sequence)
+dna_seq <- DNAString("ATGCCGTAGCCTGA")
+print(paste("Original DNA:",dna_seq ))
+
+# Translate the DNA to Protein
+protein <- translate(dna_seq)
+print(paste("Protein sequence:",protein))
+
+# Get reverse complement of the DNA sequence
+rev_com <- reverseComplement(dna_seq)
+print(paste("Reverse Complement:",rev_com))
+
+#Calcuate GC content
+gc_perc <- letterFrequency(dna_seq, letters = "GC" , as.prob = TRUE)*100
+print(paste("GC Content:",round(gc_perc,2),"%"))
+
+#Create The gene data frame
+gene_data <- data.frame(
+  gene =c("TP53","BRCA1","EGFR","MYC","PTEN","GAPDH"),
+  expression=c(12.5 ,45.2, 8.9, 33.1, 2.4, 105.0),
+  p_value =c(0.01, 0.002, 0.54, 0.001, 0.04, 0.99),
+  type = c("Tumor","Tumor","Normal","Tumor","Normal","Control")
+)
+
+# Filter genes with P-value <0.05
+significant_genes <- gene_data %>%
+  filter(p_value < 0.05)
+
+#create log2 of expression
+significant_genes <- significant_genes %>%
+  mutate(log_exp = log2(expression))
+
+# Sort genes by log exepression in descending
+significant_genes <- significant_genes %>%
+  arrange(desc(log_exp))
+
+print("Significant Genes (Sorted):")
+print(significant_genes)
+
+#Create a DNA sequence set
+seq_set <- DNAStringSet(
+  c("ATGCGT" , "ATGCGC" , "ATGCGG" , "ATGCGA", "ATGCGC" , "ATGCGT")
+)
+names(seq_set) <- gene_data$gene
+
+
+#convert sequence set to data frame
+seq_info <- data.frame(
+  gene = names(seq_set),
+  sequence = as.character(seq_set),
+  width = width(seq_set)
+)
+
+#Merge gene data with sequnce info
+final_combined_data <- left_join(gene_data , seq_info ,by ="gene")
+
+print("Combined Gene Expression and Sequence Data:")
+print(final_combined_data)
+
+########Summarize mean expression by group########
+# Group by 'type' and calculate mean expression
+group_summary <- gene_data %>%
+  group_by(type)%>%
+  summarize(
+    avg_expression = mean(expression),
+    gene_count = n()
+  )
+
+print("Group Summary Statistics")
+print(group_summary)
