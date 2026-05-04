@@ -1,0 +1,62 @@
+#################Cancer Gene Expression Analysis###################
+
+#Load Packages
+library(Biostrings)
+library(tidyverse)
+library(pwalign)
+
+#definde DNA sequance
+wt_seq  <- DNAString("ATGCGTACGGT")
+mut_seq <- DNAString("ATGCCTACGGT")
+
+###1. Perform global sequence alignment and calculate similarity score.
+alignment <- pwalign::pairwiseAlignment(wt_seq ,mut_seq, type= "global")
+print(alignment)
+score(alignment)
+
+# Create Matrix
+set.seed(123) 
+
+Expression_Matrix <- matrix(rpois(48 , lambda = 5) , ncol=4)
+rownames(Expression_Matrix) <- paste0("gene" ,1:12)
+colnames(Expression_Matrix) <- c("S1_Ctrl", "S2_Ctrl", "S3_Treat", "S4_Treat")
+print(Expression_Matrix)
+
+###2. Filter genes where total expression ≤ 10.
+keep_genes <- rowSums(Expression_Matrix) > 10
+filter_data <- Expression_Matrix[keep_genes,]
+print(filter_data)
+  
+#Missing Values: 
+Expression_Matrix[3,1] <- NA 
+Expression_Matrix[8,4] <- NA
+
+
+# 3. Count missing values and replace NA using row mean.
+# count NA values
+sum_NA <- sum(is.na(Expression_Matrix))
+print(sum_NA)
+# replace NA using row mean
+impact_val <- apply(Expression_Matrix , 1 , function(x) mean(x, na.rm=TRUE))
+for(i in 1:nrow(Expression_Matrix)){
+  Expression_Matrix[i,is.na(Expression_Matrix[i,])]<- impact_val[i]
+}
+
+# 4.Normalize data using CPM.(Counts Per Million)
+sample_sum <- colSums(filtered_data)
+cpm_data <- t(t(filter_data)/sample_sum)*1e6
+
+#5. Apply log transformation (log2 + 1).
+log_cpm <- log2(cpm_data +1)
+
+#6. Apply Z-score scaling
+scale_data <- t(scale(t(log_cpm)))
+
+#7. Visualize raw vs processed data using boxplots.
+par(mfrow = c(1,2))
+ 
+#befor processe
+boxplot(log2(Expression_Matrix +1) ,main ="Row Data",col="blue" )
+# after processe
+boxplot(log2(Expression_Matrix +1) ,main ="Normalized Data",col="tomato""  )
+par(mfrow = c(1,1))
